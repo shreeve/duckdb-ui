@@ -1,6 +1,8 @@
 #include "watcher.hpp"
 
+#include <duckdb/catalog/catalog.hpp>
 #include <duckdb/main/attached_database.hpp>
+#include <duckdb/main/database_manager.hpp>
 
 #include "utils/helpers.hpp"
 #include "utils/md_helpers.hpp"

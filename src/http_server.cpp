@@ -22,6 +22,7 @@
 #include <duckdb/main/client_data.hpp>
 #include <duckdb/parser/parsed_data/create_table_info.hpp>
 #include <duckdb/parser/parser.hpp>
+#include <duckdb/transaction/meta_transaction.hpp>
 
 namespace duckdb {
 namespace ui {
@@ -576,10 +577,18 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
                                     ? "main"
                                     : result_schema_name_option;
 
+#if DUCKDB_VERSION_AT_LEAST(1, 6, 0)
+      auto result_table_info =
+          make_uniq<duckdb::CreateTableInfo>(QualifiedName(
+              AsCatalogIdentifier(result_database_name),
+              AsCatalogIdentifier(result_schema_name),
+              AsCatalogIdentifier(result_table_name)));
+#else
       auto result_table_info = make_uniq<duckdb::CreateTableInfo>(
           AsCatalogIdentifier(result_database_name),
           AsCatalogIdentifier(result_schema_name),
           AsCatalogIdentifier(result_table_name));
+#endif
       for (idx_t i = 0; i < result->names.size(); i++) {
         result_table_info->columns.AddColumn(
             ColumnDefinition(AsCatalogIdentifier(result->names[i]),
