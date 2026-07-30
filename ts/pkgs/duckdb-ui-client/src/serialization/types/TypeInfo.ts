@@ -13,6 +13,12 @@ export interface DecimalTypeInfo extends BaseTypeInfo {
   scale: number;
 }
 
+export interface StringTypeInfo extends BaseTypeInfo {
+  kind: 'string';
+  /** Empty if the string type has no explicit collation. */
+  collation: string;
+}
+
 export interface ListTypeInfo extends BaseTypeInfo {
   kind: 'list';
   childType: TypeIdAndInfo;
@@ -39,6 +45,7 @@ export interface ArrayTypeInfo extends BaseTypeInfo {
 export type TypeInfo =
   | GenericTypeInfo
   | DecimalTypeInfo
+  | StringTypeInfo
   | ListTypeInfo
   | StructTypeInfo
   | EnumTypeInfo

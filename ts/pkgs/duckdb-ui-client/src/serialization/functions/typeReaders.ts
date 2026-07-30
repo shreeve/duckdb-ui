@@ -56,6 +56,21 @@ export function readTypeInfo(deserializer: BinaryDeserializer): TypeInfo {
         };
       }
       break;
+    case 3: // STRING_TYPE_INFO
+      {
+        // Not written when empty, which is the case for most string types.
+        const collation = deserializer.readPropertyWithDefault(
+          200,
+          readString,
+          '',
+        );
+        typeInfo = {
+          ...baseInfo,
+          kind: 'string',
+          collation,
+        };
+      }
+      break;
     case 4: // LIST_TYPE_INFO
       {
         const childType = deserializer.readProperty(200, readType);
