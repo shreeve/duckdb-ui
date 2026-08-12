@@ -41,11 +41,55 @@ namespace duckdb {
 inline Identifier AsCatalogIdentifier(const std::string &name) {
   return Identifier(name);
 }
+inline const Identifier &AsCatalogIdentifier(const Identifier &name) {
+  return name;
+}
 #else
 inline const std::string &AsCatalogIdentifier(const std::string &name) {
   return name;
 }
 #endif
+
+// Recover the raw string of a catalog name, whichever type it is carried in.
+inline const std::string &AsRawString(const std::string &name) { return name; }
+#ifdef DUCKDB_HAS_IDENTIFIER
+inline const std::string &AsRawString(const Identifier &name) {
+  return name.GetIdentifierName();
+}
+#endif
+
+// DuckDB's `main` branch made BaseQueryResult's `names` and `types` private,
+// reaching them through accessors instead, and switched the names to
+// `Identifier`.
+#if DUCKDB_VERSION_AT_LEAST(1, 6, 0)
+inline const auto &ResultNames(const BaseQueryResult &result) {
+  return result.GetNames();
+}
+inline const vector<LogicalType> &ResultTypes(const BaseQueryResult &result) {
+  return result.GetTypes();
+}
+#else
+inline const vector<std::string> &ResultNames(const BaseQueryResult &result) {
+  return result.names;
+}
+inline const vector<LogicalType> &ResultTypes(const BaseQueryResult &result) {
+  return result.types;
+}
+#endif
+
+// Emit a single-row, single-column result into a table function's output.
+// DuckDB's `main` branch derives a chunk's cardinality from the sizes of its
+// child vectors, which are grown with Vector::Append. There, the old
+// write-at-index + SetCardinality pair leaves the child vector empty while
+// claiming a cardinality of one, which yields a malformed chunk.
+inline void AppendSingleValue(DataChunk &output, Value value) {
+#if DUCKDB_VERSION_AT_LEAST(1, 6, 0)
+  output.data[0].Append(value);
+#else
+  output.SetCardinality(1);
+  output.SetValue(0, 0, value);
+#endif
+}
 
 typedef std::string (*simple_tf_t)(ClientContext &);
 
@@ -61,15 +105,26 @@ struct RunOnceTableFunctionState : GlobalTableFunctionState {
 
 namespace internal {
 
+// The element type of the out_names parameter of a table function's bind
+// callback: std::string on DuckDB 1.5 and earlier, Identifier on `main`.
+// Deduced from the callback type so both are supported.
+template <typename T> struct BindNameType;
+template <typename Result, typename Context, typename Input, typename Types,
+          typename Names>
+struct BindNameType<Result (*)(Context, Input, Types, Names)> {
+  using type = typename std::remove_reference<Names>::type::value_type;
+};
+using bind_name_t = typename BindNameType<table_function_bind_t>::type;
+
 unique_ptr<FunctionData> SingleBoolResultBind(ClientContext &,
                                               TableFunctionBindInput &,
                                               vector<LogicalType> &out_types,
-                                              vector<std::string> &out_names);
+                                              vector<bind_name_t> &out_names);
 
 unique_ptr<FunctionData> SingleStringResultBind(ClientContext &,
                                                 TableFunctionBindInput &,
                                                 vector<LogicalType> &,
-                                                vector<std::string> &);
+                                                vector<bind_name_t> &);
 
 bool ShouldRun(TableFunctionInput &input);
 
@@ -101,8 +156,7 @@ void TableFunc(ClientContext &context, TableFunctionInput &input,
 
   const std::string result =
       CallFunctionHelper<Func>::call(context, input, func);
-  output.SetCardinality(1);
-  output.SetValue(0, 0, result);
+  AppendSingleValue(output, Value(result));
 }
 
 #ifdef DUCKDB_CPP_EXTENSION_ENTRY

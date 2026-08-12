@@ -589,10 +589,12 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
           AsCatalogIdentifier(result_schema_name),
           AsCatalogIdentifier(result_table_name));
 #endif
-      for (idx_t i = 0; i < result->names.size(); i++) {
+      auto &result_names = ResultNames(*result);
+      auto &result_types = ResultTypes(*result);
+      for (idx_t i = 0; i < result_names.size(); i++) {
         result_table_info->columns.AddColumn(
-            ColumnDefinition(AsCatalogIdentifier(result->names[i]),
-                             result->types[i]));
+            ColumnDefinition(AsCatalogIdentifier(result_names[i]),
+                             result_types[i]));
       }
 
       appender_connection = make_uniq<duckdb::Connection>(*db);
@@ -619,8 +621,16 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
 
     // Fetch the chunks and serialize the result.
     SuccessResult success_result;
-    success_result.column_names_and_types = {std::move(result->names),
-                                             std::move(result->types)};
+    {
+      auto &names = ResultNames(*result);
+      duckdb::vector<std::string> column_names;
+      column_names.reserve(names.size());
+      for (auto &name : names) {
+        column_names.push_back(AsRawString(name));
+      }
+      success_result.column_names_and_types = {std::move(column_names),
+                                               ResultTypes(*result)};
+    }
 
     auto row_limit = std::max(result_row_limit, result_table_row_limit);
     auto rows_fetched = 0;

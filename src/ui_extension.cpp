@@ -71,8 +71,7 @@ void IsUIStartedTableFunc(ClientContext &context, TableFunctionInput &input,
     return;
   }
 
-  output.SetCardinality(1);
-  output.SetValue(0, 0, ui::HttpServer::Started());
+  AppendSingleValue(output, Value::BOOLEAN(ui::HttpServer::Started()));
 }
 
 void InitStorageExtension(duckdb::DatabaseInstance &db) {

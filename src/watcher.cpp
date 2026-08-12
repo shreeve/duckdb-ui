@@ -83,6 +83,16 @@ void Watcher::Watch() {
       return; // Disable watcher
     }
 
+    // Wait before polling, not after. The first poll would otherwise race with
+    // the still-running query that started this thread.
+    {
+      std::unique_lock<std::mutex> lock(mutex);
+      cv.wait_for(lock, std::chrono::milliseconds(polling_interval));
+    }
+    if (!should_run) {
+      break;
+    }
+
     try {
       if (WasCatalogUpdated(*db, con, last_state)) {
         server.event_dispatcher->SendCatalogChangedEvent();
@@ -97,11 +107,6 @@ void Watcher::Watch() {
       std::cerr << "Error in watcher: " << ex.what() << std::endl;
       std::cerr << "Will now terminate." << std::endl;
       return;
-    }
-
-    {
-      std::unique_lock<std::mutex> lock(mutex);
-      cv.wait_for(lock, std::chrono::milliseconds(polling_interval));
     }
   }
 }
