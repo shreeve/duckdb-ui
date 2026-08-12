@@ -3,13 +3,13 @@
 # us. DuckDB's registry publishes `ui` for every stable release and for every
 # v2 nightly it builds extensions for -- but not this one:
 #
-#   http://extensions.duckdb.org/v2.0.0-alpha37432/osx_arm64/ui.duckdb_extension.gz  -> 404
+#   http://extensions.duckdb.org/v2.0.0-alpha37626/osx_arm64/ui.duckdb_extension.gz  -> 404
 #
 # so a v2 binary has no UI unless someone builds it. That is what this is for.
 #
 # duckdb_version is a git ref, not a label. It travels as CI_DUCKDB_VERSION into
 # ci_phase.py, which runs `make set_duckdb_version` -> `cd duckdb && git checkout
-# $(DUCKDB_GIT_VERSION)`. Passing the runtime version string v2.0.0-alpha37432
+# $(DUCKDB_GIT_VERSION)`. Passing the runtime version string v2.0.0-alpha37626
 # failed both builds in under a minute: DuckDB synthesises that name for its
 # nightlies and there is no such ref to check out.
 #
@@ -40,7 +40,7 @@ jobs:
     with:
       extension_name: ui
       ci_tools_version: main
-      duckdb_version: 22226bba7f8b3fa32b9b1c0777c2caf048cb4cef
+      duckdb_version: 7e14bd24e03f5b5c30b8f3af79a8fbb15dce8320
       exclude_archs: 'linux_arm64;linux_amd64_musl;linux_arm64_musl;osx_amd64;windows_amd64;windows_amd64_mingw;windows_arm64;wasm_mvp;wasm_eh;wasm_threads'
       # A release wants every binary that can be produced; one runner's bad day
       # should not cancel the other.
