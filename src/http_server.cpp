@@ -515,6 +515,17 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
 
   std::string content = ReadContent(content_reader);
 
+  // Set DUCKDB_UI_LOG_REQUESTS=1 to see what the app actually asks for. The app
+  // is a hosted bundle we cannot step through, so when its behaviour is in
+  // question -- did it really send that twice? -- this is the only direct
+  // evidence of what it sent.
+  if (IsEnvEnabled("duckdb_ui_log_requests")) {
+    Printer::PrintF("ui: /ddb/run conn=%s desc=%s sql=%s",
+                    connection_name.empty() ? "-" : connection_name,
+                    description.empty() ? "-" : description,
+                    StringUtil::Replace(content, "\n", " "));
+  }
+
   auto db = ddb_instance.lock();
   if (!db) {
     SetResponseErrorResult(
