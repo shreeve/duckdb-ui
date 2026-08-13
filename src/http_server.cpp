@@ -17,6 +17,7 @@
 #endif
 #include <duckdb/common/http_util.hpp>
 #include <duckdb/common/serializer/binary_serializer.hpp>
+#include <duckdb/common/storage_compatibility.hpp>
 #include <duckdb/common/serializer/memory_stream.hpp>
 #include <duckdb/main/attached_database.hpp>
 #include <duckdb/main/client_data.hpp>
@@ -26,6 +27,22 @@
 
 namespace duckdb {
 namespace ui {
+
+namespace {
+
+// The browser app deserializes results with its own reader, which implements
+// the pre-2.0.0 vector format. DuckDB 2.0.0 changed how VARCHAR vectors are
+// written -- fields 107/108/109 (byte_data_length, length_data, byte_data)
+// instead of a 102 list -- so pin the wire format to what the app understands
+// rather than letting it follow the server's storage default.
+SerializationOptions ResultSerializationOptions() {
+  SerializationOptions options;
+  options.storage_compatibility =
+      StorageCompatibility::FromIndex(StorageVersion::V1_5_5);
+  return options;
+}
+
+} // namespace
 
 unique_ptr<HttpServer> HttpServer::server_instance;
 
@@ -674,7 +691,8 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
     }
 
     MemoryStream success_response_content;
-    BinarySerializer::Serialize(success_result, success_response_content);
+    BinarySerializer::Serialize(success_result, success_response_content,
+                                ResultSerializationOptions());
     SetResponseContent(res, success_response_content);
     break;
   }
