@@ -195,17 +195,19 @@ const HttpServer &HttpServer::Start(ClientContext &context, bool *was_started) {
   }
 
   const auto remote_url = GetRemoteUrl(context);
+  const auto public_url = GetPublicUrl(context);
   const auto port = GetLocalPort(context);
   auto &http_util = HTTPUtil::Get(*context.db);
   // FIXME - https://github.com/duckdb/duckdb/pull/17655 will remove `unused`
   auto http_params = http_util.InitializeParameters(context, "unused");
   auto server = GetInstance(context);
-  server->DoStart(port, remote_url, std::move(http_params));
+  server->DoStart(port, remote_url, public_url, std::move(http_params));
   return *server;
 }
 
 void HttpServer::DoStart(const uint16_t _local_port,
                          const std::string &_remote_url,
+                         const std::string &_public_url,
                          unique_ptr<HTTPParams> _http_params) {
   if (Started()) {
     throw std::runtime_error("HttpServer already started");
@@ -213,6 +215,11 @@ void HttpServer::DoStart(const uint16_t _local_port,
 
   local_port = _local_port;
   local_url = StringUtil::Format("http://localhost:%d", local_port);
+  // Behind a reverse proxy the browser's origin is the proxy's name, not
+  // this server's. Comparing against the name it is actually reached by
+  // keeps the cross-site check doing its job; leaving it unset keeps the
+  // original behaviour exactly.
+  allowed_origin = _public_url.empty() ? local_url : _public_url;
   remote_url = _remote_url;
   http_params = std::move(_http_params);
   user_agent =
@@ -326,7 +333,7 @@ void HttpServer::HandleGetLocalToken(const httplib::Request &req,
   // GET requests don't include Origin, so use Referer instead.
   // Referer includes the path, so only compare the start.
   auto referer = req.get_header_value("Referer");
-  if (referer.compare(0, local_url.size(), local_url) != 0) {
+  if (referer.compare(0, allowed_origin.size(), allowed_origin) != 0) {
     res.status = 401;
     return;
   }
@@ -419,7 +426,7 @@ void HttpServer::HandleGet(const httplib::Request &req,
 void HttpServer::HandleInterrupt(const httplib::Request &req,
                                  httplib::Response &res) {
   auto origin = req.get_header_value("Origin");
-  if (origin != local_url) {
+  if (origin != allowed_origin) {
     res.status = 401;
     return;
   }
@@ -459,7 +466,7 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
                              httplib::Response &res,
                              const httplib::ContentReader &content_reader) {
   auto origin = req.get_header_value("Origin");
-  if (origin != local_url) {
+  if (origin != allowed_origin) {
     res.status = 401;
     return;
   }
@@ -798,7 +805,7 @@ void HttpServer::HandleTokenize(const httplib::Request &req,
                                 httplib::Response &res,
                                 const httplib::ContentReader &content_reader) {
   auto origin = req.get_header_value("Origin");
-  if (origin != local_url) {
+  if (origin != allowed_origin) {
     res.status = 401;
     return;
   }

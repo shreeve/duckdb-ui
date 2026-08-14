@@ -124,6 +124,17 @@ static void LoadInternal(DatabaseInstance &instance) {
   }
 
   {
+    auto def = GetEnvOrDefault(UI_PUBLIC_URL_SETTING_NAME,
+                               UI_PUBLIC_URL_SETTING_DEFAULT);
+    config.AddExtensionOption(
+        UI_PUBLIC_URL_SETTING_NAME,
+        "Address a browser reaches the UI at, when it is not "
+        "http://localhost:<ui_local_port> — the origin the data endpoints "
+        "require",
+        LogicalType::VARCHAR, Value(def));
+  }
+
+  {
     auto def = GetEnvOrDefaultInt(UI_POLLING_INTERVAL_SETTING_NAME,
                                   UI_POLLING_INTERVAL_SETTING_DEFAULT);
     config.AddExtensionOption(

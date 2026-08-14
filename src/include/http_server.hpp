@@ -43,7 +43,7 @@ private:
 
   // Lifecycle
   void DoStart(const uint16_t local_port, const std::string &remote_url,
-               unique_ptr<HTTPParams>);
+               const std::string &public_url, unique_ptr<HTTPParams>);
   void DoStop();
   void Run();
   void UpdateDatabaseInstance(shared_ptr<DatabaseInstance> context_db);
@@ -77,6 +77,11 @@ private:
 
   uint16_t local_port;
   std::string local_url;
+  // The origin a request must carry to reach a data endpoint: local_url
+  // unless ui_public_url named something else. Held separately because
+  // local_url is still what the server calls itself in logs and in the
+  // message that tells you where the UI is.
+  std::string allowed_origin;
   std::string remote_url;
   weak_ptr<DatabaseInstance> ddb_instance;
   std::string user_agent;
