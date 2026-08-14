@@ -19,9 +19,22 @@
 # thing entirely, and comes from OVERRIDE_GIT_DESCRIBE in the Makefile; see the
 # note there for why it cannot be derived.
 #
-# Two architectures rather than the full matrix: these are the platforms a v2
-# nightly is actually being run on here. Add to exclude_archs' complement when
-# that changes.
+# Five native targets, matching what duckdb-harbor ships: linux amd64/arm64,
+# osx arm64, windows amd64/arm64. It was two -- the platforms a v2 nightly was
+# being run on at the time -- and the rest are here now so a v2 machine of any
+# shape has a UI to load.
+#
+# What stays excluded and why. osx_amd64: Apple stopped selling Intel Macs in
+# 2023, and Rosetta runs an arm64 DuckDB, which loads an arm64 extension.
+# windows_amd64_mingw: redundant with the MSVC build. The musl pair: nobody has
+# asked for Alpine. The three wasm targets: the UI serves HTTP from inside the
+# process, which a browser sandbox cannot do.
+#
+# Unlike harbor, none of this can be short-cut by restamping one build for
+# another version. Harbor is C_STRUCT_UNSTABLE -- Rust over the C API, never
+# linking DuckDB -- so its payload does not depend on which DuckDB loads it.
+# The UI is a CPP extension linked against DuckDB's internals, so every version
+# and every platform is a real build.
 name: Build for DuckDB v2
 
 on:
@@ -41,7 +54,9 @@ jobs:
       extension_name: ui
       ci_tools_version: main
       duckdb_version: 7e14bd24e03f5b5c30b8f3af79a8fbb15dce8320
-      exclude_archs: 'linux_arm64;linux_amd64_musl;linux_arm64_musl;osx_amd64;windows_amd64;windows_amd64_mingw;windows_arm64;wasm_mvp;wasm_eh;wasm_threads'
+      exclude_archs: 'linux_amd64_musl;linux_arm64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads'
+      # windows_arm64 is not in the default matrix and has to be asked for.
+      opt_in_archs: 'windows_arm64'
       # A release wants every binary that can be produced; one runner's bad day
       # should not cancel the other.
       reduced_ci_mode: 'disabled'
